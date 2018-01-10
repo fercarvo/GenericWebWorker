@@ -27,7 +27,30 @@ The code executed in the WebWorker have error catch.
 
 If there is the need to execute a piece of code that will block the main thread for a long time, for example a huge for loop, math operations or javascript bitcoin minning, you can execute it in a GenericWebWOrker
 
-Sample code:
+Basic usage code:
+
+#### WIth zero parameters to the constructor
+
+This will create a WebWorker that will not use any external function o read external data, the code inside the callback execute as it
+
+```js
+var worker = new GenericWebWorker()
+
+worker.exec(function() {
+    
+    //This will block the code for a long time, but it is not in the main thread, so the web page does not freeze.
+    var a = 0
+    for (var i = 0; i < 100000000000; i++) //blocking code
+        a += i
+
+    return a
+})
+.then(res => console.log(res)) //Getitng the result back in the main thread.
+.catch(()=>{})
+
+```
+
+## Using paramethers in the constructor
 
 ```js
 var gw = new GenericWebWorker({foo: 23, bar: "ii"}, ["test"])
