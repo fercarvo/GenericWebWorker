@@ -50,7 +50,7 @@ function test () {
 
 ## Installation
 
-`[GenericWebWorker file](genericWebWorker.js)`
+[GenericWebWorker file](genericWebWorker.js)
 
 ## How to use
 
