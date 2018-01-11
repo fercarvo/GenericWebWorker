@@ -1,16 +1,17 @@
 /*
-    GenericWebWorker v1.0
+    GenericWebWorker v1.01
     
     Author, Edgar Fernando Carvajal Ulloa <efcu93@gmail.com>, <efcarvaj@espol.edu.ec>
-    A Generic Javascript WebWorker where the user can execute and pass functions.
-
+    A Generic Javascript WebWorker where the user can execute and pass functions
+    
     This WebWorker does not require a external WW file.
-*/
-class GenericWebWorker {
-    /*  data, information to be passed to the ww
+
+    constructor:
+        data, information to be passed to the ww
         context, the context where the functions are, if not mention, window
         functions, Array of functions manes to be passed ej ["fn_1", "printerData"]
-    */
+*/
+class GenericWebWorker {
     constructor(data, functions, context = window) {
         this.data = data
         this.functions = []
@@ -35,7 +36,7 @@ class GenericWebWorker {
 
             this.callback = this.fn_string(cb)
 
-            var worker_link = window.URL.createObjectURL( new Blob(["self.addEventListener('message',function(e){var functions = {};var args = [];e.data.functions.forEach(fn => {functions[fn.name] = new Function(fn.args, fn.body);args = [...args, fn.name];});var callback = new Function( e.data.callback.args, e.data.callback.body);args = args.map(fn_name => functions[fn_name]);args.unshift(e.data.data);try {var result = callback.apply(this, args);self.postMessage( result );} catch (e) {self.postMessage({error: e.toString()});}}, false);"]))
+            var worker_link = window.URL.createObjectURL( new Blob(["onmessage = function (e) { try { var functions = {}; var args = []; e.data.functions.forEach(fn => { functions[fn.name] = new Function(fn.args, fn.body); args = [...args, fn.name];}); var callback = new Function( e.data.callback.args, e.data.callback.body); args = args.map(fn_name => functions[fn_name]); args = [e.data.data, ...args]; try { var result = callback.apply(this, args); postMessage(result); close(); } catch (e) { throw new Error(`FunctionError: ${e}`);}} catch (e) {postMessage({error: e.toString()}); close();} }"]))
             var worker = new Worker(worker_link)
 
             worker.postMessage({ 
@@ -44,16 +45,23 @@ class GenericWebWorker {
                 data: this.data 
             })
 
-            worker.addEventListener('error', error => reject(error.message) )
-
-            worker.addEventListener('message', function(e) {
+            worker.onmessage = e => {
                 if (e.data && e.data.error)
                     reject(e.data.error)
                 else
                     resolve(e.data)
 
+                worker.terminate() //Se termina el worker
+                window.URL.revokeObjectURL(worker_link) //Blob is deleted
+                worker = null, worker_link = null //Se elimina las referencias
+            }
+
+            worker.onerror = e => {
+                reject(e.message)
                 worker.terminate()
-            }, false)
+                window.URL.revokeObjectURL(worker_link) 
+                worker = null, worker_link = null
+            }
         })
     }
 
