@@ -9,95 +9,60 @@
 */
 class GenericWebWorker {
     /**
-    * @param    {any}    data       Any value to be passed to the WW, is the first parameter of the callback
-    * @param    {Array}  functions  Array of functions names presented in the context
-    * @param    {object} context    Context where the functions are, window default.
+    * @param {any} data, Any kind of arguments that will be used in the callback, functions too
     */
-    constructor(data, functions, context = window) {
-        this.data = data
-        this.functions = []
-        this.callback = null 
-
-        if (context && Array.isArray(functions) && functions.length > 0) {
-            if (functions.some(fn => 'function' !== typeof context[fn] )) {
-                throw new Error(`Some of these next (${functions}) are not functions`)
-            }
-            this.functions = functions.map(fn => this.fn_string( context[fn] ))
-        }
+    constructor(...data) {
+        //The arguments that will be passed to the callback
+        this.args = data.map(a => (typeof a === 'function') ? this.fn_string(a) : a)
     }
 
     exec(cb) {
         return new Promise((resolve, reject) => {
-            if (typeof cb !== 'function'){
-                throw new Error(`(${cb}) is not a function`)
-            }
-            this.callback = this.fn_string(cb)
 
-            if (this.callback.args.split(',').length !== this.functions.length + 1) {
-                throw new Error("Invalid number of arguments, use ex. (data, fn1, fn2...)")
-            }
-            var worker_string = this.fn_string(this.worker).body
-            var worker_link = window.URL.createObjectURL( new Blob([worker_string]) )
-            var worker = new Worker(worker_link)
+            var callback = this.fn_string(cb)            
+            var wk_string = this.fn_string(this.worker).body
+            var wk_link = window.URL.createObjectURL( new Blob([wk_string]) )
+            var wk = new Worker(wk_link)
 
-            worker.postMessage({ 
-                callback: this.callback, 
-                functions: this.functions, 
-                data: this.data 
-            })
+            wk.postMessage({ callback, args: this.args });
 
-            worker.onmessage = e => {
+            wk.onmessage = e => {
                 if (e.data && e.data.error)
                     reject(e.data.error)
                 else
                     resolve(e.data)
-
-                worker.terminate() //Se termina el worker
-                window.URL.revokeObjectURL(worker_link) //Blob is deleted
-                worker = null, worker_link = null //Se elimina las referencias
+                end()                
             }
 
-            worker.onerror = e => {
-                reject(e.message)
-                worker.terminate()
-                window.URL.revokeObjectURL(worker_link) 
-                worker = null, worker_link = null
+            wk.onerror = e => {
+                reject(e.message), end()
+            }
+
+            function end () {
+                wk.terminate(), window.URL.revokeObjectURL(wk_link)
+                wk = null, wk_link = null
             }
         })
     }
 
-    //The WebWorker that makes the magic, 1st to string and then to Blob
+    //The WebWorker that makes the magic
     worker() {
         onmessage = function (e) {
-            try {
-                var functions = {} 
-                var args = []
-
-                e.data.functions.forEach(fn => {
-                    functions[fn.name] = new Function(fn.args, fn.body)
-                    args = [...args, fn.name] //["fn_1", "fn_2", "fn_3"]
-                })
-
-                var callback = new Function( e.data.callback.args, e.data.callback.body) //fn to execute
-
-                args = args.map(fn_name => functions[fn_name])
-                args = [e.data.data, ...args]
+            try {                
+                var cb = new Function(e.data.callback.args, e.data.callback.body); //fn to execute
+                var args = e.data.args.map(p => (p.type === 'fn') ? new Function(p.args, p.body) : p);
 
                 try {
-                    var result = callback.apply(this, args)
+                    var result = cb.apply(this, args)
 
                     if (!isPromise(result)) //If not a promise
                         return postMessage(result)
 
-                    result.then(res => postMessage(res))
-                    result.catch(e => postMessage({error: e}))
+                    result.then(res => postMessage(res) )
+                    result.catch(e => postMessage({error: e}) )
 
-                } catch (e) {
-                    throw new Error(`FunctionError: ${e}`)
-                }
-            } catch (e) {
-                postMessage({error: e.message})
-            }
+                } catch (e) { throw new Error(`FunctionError: ${e}`) }
+            } catch (e) { postMessage({error: e.message}) }
         }
 
         function isPromise(obj) { //Check if the return of a function is a promise
@@ -106,10 +71,12 @@ class GenericWebWorker {
     }
 
     fn_string(fn) {
+        if (typeof fn !== 'function')
+            throw new Error(`(${fn}) is not a function`);
+
         var name = fn.name 
         var fn = fn.toString()
-
-        return { name: name, 
+        return { type: 'fn', name: name, 
             args: fn.substring(fn.indexOf("(") + 1, fn.indexOf(")")),
             body: fn.substring(fn.indexOf("{") + 1, fn.lastIndexOf("}"))
         }        

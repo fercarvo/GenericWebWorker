@@ -29,7 +29,7 @@ var data = {
 //1st parameter is data to be passed.
 //2nd array of functions names that belong to the context.
 //3rd context that have the functions 
-var worker = new GenericWebWorker(data, ["blockCpu", "foo"], foo) //Foo is the context of the functions
+var worker = new GenericWebWorker(data,  foo.blockCpu, foo.foo) //Foo is the context of the functions
 
 worker.exec(function (data, passedfunction, foo) {
     console.log(foo()) //The foo function
@@ -52,7 +52,7 @@ function fn_print() {
     console.log(8978967699999999)
 }
 
-var w2 = new GenericWebWorker(null, ["fn_print"])
+var w2 = new GenericWebWorker(null, fn_print)
 
 w2.exec(function (data, printer){
     console.log("if the context is no listed, window is the default")

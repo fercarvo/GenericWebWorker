@@ -53,7 +53,7 @@ worker.exec(function() {
 ## Using paramethers in the constructor
 
 ```js
-var gw = new GenericWebWorker({foo: 23, bar: "ii"}, ["test"])
+var gw = new GenericWebWorker({foo: 23, bar: "ii"}, test)
 
 gw.exec(function(data, fun1){
     var a = 0
@@ -103,19 +103,18 @@ worker.exec(function() {
 
 ```
 
-### Pass data a functions, but any context
+### Pass data and functions
 
-The default context is `window`.
 
 ```js
 function fn_print() {
     console.log(00098)
 }
 
-var w2 = new GenericWebWorker(null, ["fn_print"])
+var w2 = new GenericWebWorker(1, 2, fn_print)
 
-w2.exec(function (data, printer){
-    console.log("if the context is no listed, window is the default")
+w2.exec(function (data1, data2, printer){
+    console.log(data1, data2) //1  2
     printer() // 00098
     return "bla"
 }).then(d => console.log(d)) // bla
@@ -145,7 +144,7 @@ var data = {
     blu: [12,32,12312]
 }
 
-var worker = new GenericWebWorker(data, ["blockCpu"], foo) // foo is the context
+var worker = new GenericWebWorker(data, foo.blockCpu)
 
 worker.exec(function (data, blockCpu) {
     blockCpu(20000) // Stop execution for 20s, main thread not affected
@@ -154,18 +153,6 @@ worker.exec(function (data, blockCpu) {
 })
 .then(data => console.log(data)) // Anakin Skywalker
 .catch(e => console.log(e))
-```
-
-### Catch Errors
-
-```js
-var worker = new GenericWebWorker()
-
-worker.exec(function () {
-	throw new Error("Hello there error")
-
-}).then(() => {})
-.catch(e => console.log(e)) // Error: Hello there error
 ```
 
 ## License
