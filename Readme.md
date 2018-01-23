@@ -55,7 +55,7 @@ worker.exec(function() {
 ```js
 var gw = new GenericWebWorker({foo: 23, bar: "ii"}, test)
 
-gw.exec(function(data, fun1){
+gw.exec((data, fun1)=>{
     var a = 0
     for (var i = 0; i < 100000000000; i++) //blocking code
         a += i

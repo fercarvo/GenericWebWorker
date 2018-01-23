@@ -1,22 +1,13 @@
 //This file is not used, just for development purpose.
-onmessage = function (e) {
+onmessage = async function (e) {
     try {                
-        var cb = new Function(e.data.callback.args, e.data.callback.body); //fn to execute
-        var args = e.data.args.map(p => (p.type === 'fn') ? new Function(p.args, p.body) : p);
+        var cb = new Function(`return ${e.data.callback}`)();
+        var args = e.data.args.map(p => (p.type == 'fn') ? new Function(`return ${p.fn}`)() : p);
 
         try {
-            var result = cb.apply(this, args)
+            var result = await cb.apply(this, args); //If it is a promise or async function
+            return postMessage(result)
 
-            if (!isPromise(result)) //If not a promise
-                return postMessage(result)
-
-            result.then(res => postMessage(res) )
-            result.catch(e => postMessage({error: e}) )
-
-        } catch (e) { throw new Error(`FunctionError: ${e}`) }
+        } catch (e) { throw new Error(`CallbackError: ${e}`) }
     } catch (e) { postMessage({error: e.message}) }
-}
-
-function isPromise(obj) { //Check if the return of a function is a promise
-    return !!obj && (typeof obj === 'object' && typeof obj.then === 'function')
 }
